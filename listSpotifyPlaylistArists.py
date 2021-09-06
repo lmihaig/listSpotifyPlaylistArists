@@ -111,7 +111,7 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
 
     def setupSlider(self):
         self.lims = np.array(self.ax.get_xlim())
-        self.scroll.setPageStep(self.step*100)
+        self.scroll.setPageStep(int(self.step*100))
         self.scroll.actionTriggered.connect(self.update)
         self.update()
 
@@ -120,7 +120,6 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
         l1 = self.lims[0]+r*np.diff(self.lims)
         l2 = l1 + np.diff(self.lims)*self.step
         self.ax.set_ylim(l1, l2)
-        print(self.scroll.value(), l1, l2)
         self.fig.canvas.draw_idle()
 
     def requestNames(self, offset):
