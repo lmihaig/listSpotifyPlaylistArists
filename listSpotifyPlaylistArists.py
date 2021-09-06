@@ -1,36 +1,52 @@
-from typing import Counter
+import sys
 import requests
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.widgets import Slider
-from tkinter import *
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt5 import QtWidgets, QtCore, QtGui
+import numpy as np
 
 
-class listSpotifyPlaylistArists:
-    def __init__(self, window):
+class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
+    def __init__(self):
+        if not QtWidgets.QApplication.instance():
+            self.app = QtWidgets.QApplication(sys.argv)
+        else:
+            self.app = QtWidgets.QApplication.instance()
+
+        super().__init__()
+        QtWidgets.QMainWindow.__init__(self)
         self.firstClick = 0
         self.response_json = []
-        self.canvas = None
-        self.window = window
-        self.window.iconbitmap("listSpotifyPlaylistArists.ico")
-        self.window.wm_title("listSpotifyPlaylistArists")
-        self.eSpotifyLink = Entry(self.window)
-        self.eSpotifyLink.pack()
-        self.eSpotifyLink.insert(
-            0, "https://open.spotify.com/playlist/1kw9wSUDPWsAEDCGKAMkGU?si=ace2030540ad4fae")
-        # 0, "https://open.spotify.com/playlist/6tc6fT8N9907y4Wqwb5FDS?si=6b887c9ca1b14ffc")
+        self.widget = QtWidgets.QWidget()
+        self.initUI()
 
-        self.eToken = Entry(self.window)
-        self.eToken.pack()
-        self.eToken.insert(1, "BQAXvbD5v1A4LF8Xhj6votX2QkUujqgrYhVu3UARLSoFPJ8REKfCmZKCV-xkVA6dROx0-_6ykN9aV0My9ZdDsfH1Bc1Y0_aPGtDyPztvzuvfY9dGFucSiORU7z6huGLXRmCRDAMf6p1nIi8NYXWr-HZdGoFzCKdB1w23PmlZsCKsd2taNeM9IBLbcEyqjIJ8JazfOe8-h7zqvvvTv1aKw6RIx-9RIEGr1opHvTpzR7OGnuS5NYF-ZpMxZyRwJdsyT2eCnMXEL1Wc-zYOBhP1PA")
+        self.show()
+        self.app.exec_()
 
-        self.button = Button(self.window, text="Analyse", command=self.analyse)
-        self.button.pack()
+    def initUI(self):
+        self.setCentralWidget(self.widget)
+        self.widget.setLayout(QtWidgets.QVBoxLayout())
+
+        self.widget.layout().setContentsMargins(0, 0, 0, 0)
+        self.widget.layout().setSpacing(0)
+
+        self.setWindowTitle("listSpotifyPlaylistArists")
+        self.setWindowIcon(QtGui.QIcon('listSpotifyPlaylistArists.png'))
+
+        self.playlistLinktext = QtWidgets.QLineEdit(
+            self.widget, placeholderText="Spotify Playlist Link")
+        self.widget.layout().addWidget(self.playlistLinktext)
+        self.tokentext = QtWidgets.QLineEdit(
+            self.widget, placeholderText="Token")
+        self.widget.layout().addWidget(self.tokentext)
+        self.analyseButton = QtWidgets.QPushButton(
+            "Analyse", clicked=self.analyse)
+        self.widget.layout().addWidget(self.analyseButton)
 
     def analyse(self):
-        self.playlistId = self.eSpotifyLink.get().split(
+        self.playlistId = self.playlistLinktext.text().split(
             "playlist/")[1].split("?")[0]
-        self.token = self.eToken.get()
+        self.token = self.tokentext.text()
 
         self.counter = {}
         numberofItems = requests.get(f"https://api.spotify.com/v1/playlists/{self.playlistId}/tracks?fields=total",
@@ -52,45 +68,60 @@ class listSpotifyPlaylistArists:
                 self.counter[name] = 1
         self.counter = dict(
             sorted(self.counter.items(), key=lambda item: item[1], reverse=True))
+        self.plotGraph()
 
-        fig, ax = plt.subplots()
+    def plotGraph(self):
+        max_songs = next(iter(self.counter.values())) + 1
+
         if self.firstClick:
-            self.chart.get_tk_widget().destroy()
-            self.clipboardButton.destroy()
+            self.widget.layout().removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
+            self.widget.layout().removeWidget(self.clipboardButton)
+            self.clipboardButton.deleteLater()
+            self.clipboardButton = None
+
         self.firstClick = 1
-        self.clipboardButton = Button(
-            self.window, text="Copy to Clipboard", command=self.copytoclipboard)
-        self.clipboardButton.pack()
-        self.chart = FigureCanvasTkAgg(fig, root)
-        self.chart.get_tk_widget().pack(side="top", fill='both', expand=True)
-        ax.barh(list(range(len(self.counter))), list(
+        self.clipboardButton = QtWidgets.QPushButton(self)
+        self.clipboardButton.setText("Copy to Clipboard")
+        self.clipboardButton.clicked.connect(self.copytoclipboard)
+        self.widget.layout().addWidget(self.clipboardButton)
+
+        self.fig, self.ax = plt.subplots()
+        self.canvas = FigureCanvas(self.fig)
+        self.ax.barh(list(range(len(self.counter))), list(
             self.counter.values()), align="center", color="#1DB954")
         for i, v in enumerate(list(self.counter.values())):
-            ax.text(v + 0.08, i + .25, str(v),
-                    color='black', fontweight='bold')
-        ax.invert_yaxis()
-        ax.set_xticks(list(range(0, 100, 3)))
-        ax.set_xticks(list(range(100)), minor="True")
-        ax.xaxis.grid(which='major', alpha=0.5)
-        ax.xaxis.grid(which='minor', alpha=0.2)
+            self.ax.text(v + 0.08, i + .25, str(v),
+                         color='black', fontweight='bold')
+        self.ax.invert_yaxis()
+        self.ax.set_xticks(list(range(0, max_songs, 3)))
+        self.ax.set_xticks(list(range(max_songs)), minor="True")
+        self.ax.xaxis.grid(which='major', alpha=0.5)
+        self.ax.xaxis.grid(which='minor', alpha=0.2)
         plt.yticks(range(len(self.counter)), list(self.counter.keys()))
-        plt.plot()
-        plt.show()
-        # toolbar = NavigationToolbar2Tk(self.chart, root)
-        # toolbar.update()
-        # self.chart.get_tk_widget().pack(side="top", fill='both', expand=True)
-        # scrollbar = Scrollbar(master=root, orient=VERTICAL)
-        # scrollbar.pack(side="right", fill=X)
-        # scrollbar["command"] = self.chart.get_tk_widget().yview
-        # self.chart.get_tk_widget()["yscrollcommand"] = scrollbar.set
+        # plt.plot()
+        self.canvas.draw()
+        self.widget.layout().addWidget(self.canvas)
 
-        # self.vbar = Scrollbar(orient=VERTICAL)
-        # self.vbar.config(command=self.canvas.get_tk_widget().yview)
+        self.scroll = QtWidgets.QScrollBar(QtCore.Qt.Vertical)
+        self.step = 0.1
+        self.setupSlider()
+        self.widget.layout().addWidget(self.scroll)
 
-        # vbar = Scrollbar(master=root, orient=VERTICAL)
-        # vbar.pack(side=RIGHT, fill=Y)
-        # vbar.config(command=self.canvas.yview)
-        # self.config(yscrollcommand=vbar.set)
+    def setupSlider(self):
+        self.lims = np.array(self.ax.get_xlim())
+        self.scroll.setPageStep(self.step*100)
+        self.scroll.actionTriggered.connect(self.update)
+        self.update()
+
+    def update(self, evt=None):
+        r = self.scroll.value()/((1+self.step)*100)
+        l1 = self.lims[0]+r*np.diff(self.lims)
+        l2 = l1 + np.diff(self.lims)*self.step
+        self.ax.set_ylim(l1, l2)
+        print(self.scroll.value(), l1, l2)
+        self.fig.canvas.draw_idle()
 
     def requestNames(self, offset):
         url = f"https://api.spotify.com/v1/playlists/{self.playlistId}/tracks?fields=items(track(artists(name)))&offset={offset}"
@@ -103,15 +134,12 @@ class listSpotifyPlaylistArists:
         self.response_json = self.response_json + response.json()["items"]
 
     def copytoclipboard(self):
-        root.clipboard_clear()
+        QtWidgets.QApplication.clipboard().clear()
         formatted = ""
         for i in self.counter:
             formatted += f"{self.counter[i]} songs from {i}\n"
-        root.clipboard_append(formatted)
-        root.update()
+        QtWidgets.QApplication.clipboard().setText(formatted)
 
 
 if __name__ == "__main__":
-    root = Tk()
-    classinstance = listSpotifyPlaylistArists(root)
-    root.mainloop()
+    appWindow = listSpotifyPlaylistArists()
