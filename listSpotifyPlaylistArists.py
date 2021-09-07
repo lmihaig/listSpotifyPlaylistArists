@@ -25,7 +25,7 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
 
     def initUI(self):
         self.setCentralWidget(self.widget)
-        self.widget.setLayout(QtWidgets.QVBoxLayout())
+        self.widget.setLayout(QtWidgets.QGridLayout())
 
         self.widget.layout().setContentsMargins(0, 0, 0, 0)
         self.widget.layout().setSpacing(0)
@@ -35,13 +35,13 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
 
         self.playlistLinktext = QtWidgets.QLineEdit(
             self.widget, placeholderText="Spotify Playlist Link")
-        self.widget.layout().addWidget(self.playlistLinktext)
+        self.widget.layout().addWidget(self.playlistLinktext, 0, 0)
         self.tokentext = QtWidgets.QLineEdit(
             self.widget, placeholderText="Token")
-        self.widget.layout().addWidget(self.tokentext)
+        self.widget.layout().addWidget(self.tokentext, 1, 0)
         self.analyseButton = QtWidgets.QPushButton(
             "Analyse", clicked=self.analyse)
-        self.widget.layout().addWidget(self.analyseButton)
+        self.widget.layout().addWidget(self.analyseButton, 2, 0)
 
     def analyse(self):
         self.playlistId = self.playlistLinktext.text().split(
@@ -71,6 +71,9 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
         self.plotGraph()
 
     def plotGraph(self):
+        self.widget.layout().setColumnStretch(0, 1)
+        self.widget.layout().setColumnStretch(1, 6)
+
         max_songs = next(iter(self.counter.values())) + 1
 
         if self.firstClick:
@@ -85,32 +88,30 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
         self.clipboardButton = QtWidgets.QPushButton(self)
         self.clipboardButton.setText("Copy to Clipboard")
         self.clipboardButton.clicked.connect(self.copytoclipboard)
-        self.widget.layout().addWidget(self.clipboardButton)
+        self.widget.layout().addWidget(self.clipboardButton, 3, 0)
 
         self.fig, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.fig)
         self.ax.barh(list(range(len(self.counter))), list(
             self.counter.values()), align="center", color="#1DB954")
-        for i, v in enumerate(list(self.counter.values())):
-            self.ax.text(v + 0.08, i + .25, str(v),
-                         color='black', fontweight='bold')
-        self.ax.invert_yaxis()
+
+        self.ax.bar_label(self.ax.containers[0], label_type='edge')
         self.ax.set_xticks(list(range(0, max_songs, 3)))
         self.ax.set_xticks(list(range(max_songs)), minor="True")
         self.ax.xaxis.grid(which='major', alpha=0.5)
         self.ax.xaxis.grid(which='minor', alpha=0.2)
         plt.yticks(range(len(self.counter)), list(self.counter.keys()))
-        # plt.plot()
+
         self.canvas.draw()
-        self.widget.layout().addWidget(self.canvas)
+        self.widget.layout().addWidget(self.canvas, 4, 0)
 
         self.scroll = QtWidgets.QScrollBar(QtCore.Qt.Vertical)
         self.step = 0.1
         self.setupSlider()
-        self.widget.layout().addWidget(self.scroll)
+        self.widget.layout().addWidget(self.scroll, 4, 1, 1, 1)
 
     def setupSlider(self):
-        self.lims = np.array(self.ax.get_xlim())
+        self.lims = np.array(self.ax.get_ylim())
         self.scroll.setPageStep(int(self.step*100))
         self.scroll.actionTriggered.connect(self.update)
         self.update()
@@ -120,6 +121,7 @@ class listSpotifyPlaylistArists(QtWidgets.QMainWindow):
         l1 = self.lims[0]+r*np.diff(self.lims)
         l2 = l1 + np.diff(self.lims)*self.step
         self.ax.set_ylim(l1, l2)
+        self.ax.invert_yaxis()
         self.fig.canvas.draw_idle()
 
     def requestNames(self, offset):
